@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin – Queue Control</title>
+
+  <style>
+    :root {
+      --bg1: #050816;
+      --bg2: #0b1026;
+      --card: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.18);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #7c7cff;
+      --accent2: #22d3ee;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% 10%, #1b1f4a, transparent),
+        radial-gradient(800px 500px at 90% 20%, #0ea5e9, transparent),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      color: var(--text);
+      padding: 20px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      background: linear-gradient(90deg, #fff, #7dd3fc);
+      -webkit-background-clip: text;  /* ✅ correct */
+      background-clip: text;  
+      color: transparent;
+    }
+
+    button {
+      margin: 4px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #020617;
+      box-shadow: 0 0 12px rgba(124,124,255,0.35);
+    }
+
+    .company {
+      background: var(--card);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 30px rgba(124,124,255,0.12);
+    }
+
+    select {
+      margin-top: 6px;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+    }
+
+    .popup {
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(20,25,60,0.95);
+      border: 1px solid var(--border);
+      padding: 20px;
+      z-index: 1000;
+      max-height: 60vh;
+      overflow-y: auto;
+      border-radius: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Admin – Queue Control</h2>
+<div id="companyQueues"></div>
+<div id="popup" style="display:none" class="popup"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    getDocs,
+    getDoc,
+    doc,
+    setDoc,
+    onSnapshot,
+    query,
+    orderBy
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // 🔹 FIREBASE INIT
+  const firebaseConfig = {
+    apiKey: "AIzaSyDfO1ODSCZdlnrAiMMDniyGktlzwzDauVg",
+    authDomain: "beacon-51711.firebaseapp.com",
+    projectId: "beacon-51711",
+    storageBucket: "beacon-51711.firebasestorage.app",
+    messagingSenderId: "1060082393824",
+    appId: "1:1060082393824:web:7a6b260100c157456ba685"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  async function getStudentName(uid) {
+    const snap = await getDoc(doc(db, "students", uid));
+    return snap.exists() ? snap.data().name : uid;
+  }
+
+  // 🔹 UPDATE INTERVIEW LOCATION
+  async function updateInterviewLocation(companyId, location) {
+    if (!location) return;
+    await setDoc(
+      doc(db, "companies", companyId),
+      { interviewLocation: location },
+      { merge: true }
+    );
+  }
+  window.updateInterviewLocation = updateInterviewLocation;
+
+  // 🔹 UPDATE ROOM (EXISTING FIELD)
+  async function updateRoom(companyId, room) {
+    if (!room) return;
+    await setDoc(
+      doc(db, "companies", companyId),
+      { room: room },
+      { merge: true }
+    );
+  }
+  window.updateRoom = updateRoom;
+
+  // 🔹 QUEUE ACTIONS
+  async function advanceQueue(companyId) {
+    const ref = collection(db, "queues", companyId, "students");
+    const snap = await getDocs(ref);
+    if (snap.empty) return;
+
+    const waiting = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => s.status === "waiting")
+      .sort((a, b) => a.position - b.position);
+
+    if (waiting.length === 0) return;
+
+    await setDoc(
+      doc(db, "queues", companyId, "students", waiting[0].id),
+      { status: "done" },
+      { merge: true }
+    );
+  }
+
+  async function skipStudent(companyId) {
+    const ref = collection(db, "queues", companyId, "students");
+    const snap = await getDocs(ref);
+    if (snap.empty) return;
+
+    const waiting = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => s.status === "waiting")
+      .sort((a, b) => a.position - b.position);
+
+    if (waiting.length === 0) return;
+
+    await setDoc(
+      doc(db, "queues", companyId, "students", waiting[0].id),
+      { status: "skipped" },
+      { merge: true }
+    );
+  }
+
+  async function resetQueue(companyId) {
+    const ref = collection(db, "queues", companyId, "students");
+    const snap = await getDocs(ref);
+
+    let i = 1;
+    for (const d of snap.docs) {
+      await setDoc(
+        doc(db, "queues", companyId, "students", d.id),
+        { position: i++, status: "waiting" },
+        { merge: true }
+      );
+    }
+  }
+
+  async function viewWaitingList(companyId) {
+    const ref = collection(db, "queues", companyId, "students");
+    const snap = await getDocs(ref);
+
+    const students = snap.docs.map(d => d.data());
+    let waitingIndex = 1;
+    let html = "<h3>Waiting List</h3><ol>";
+
+    for (const s of students) {
+      const name = await getStudentName(s.studentId);
+      let pos = "X";
+      if (s.status === "waiting") pos = waitingIndex++;
+      html += `<li>${name} (pos ${pos})</li>`;
+    }
+
+    html += "</ol><button onclick='closePopup()'>Close</button>";
+    popup.innerHTML = html;
+    popup.style.display = "block";
+  }
+
+  window.advanceQueue = advanceQueue;
+  window.skipStudent = skipStudent;
+  window.resetQueue = resetQueue;
+  window.viewWaitingList = viewWaitingList;
+  window.closePopup = () => popup.style.display = "none";
+
+  // 🔹 LIVE QUEUE STATUS
+  function listenToQueue(companyId) {
+    const q = query(
+      collection(db, "queues", companyId, "students"),
+      orderBy("position")
+    );
+
+    onSnapshot(q, async (snapshot) => {
+      const el = document.getElementById(`queue-${companyId}`);
+      if (!el) return;
+
+      const waiting = snapshot.docs
+        .map(d => d.data())
+        .filter(s => s.status === "waiting")
+        .sort((a, b) => a.position - b.position);
+
+      if (waiting.length === 0) {
+        el.innerText = "No students waiting";
+        return;
+      }
+
+      const name = await getStudentName(waiting[0].studentId);
+      el.innerText =
+        `Now interviewing: ${name} | Waiting: ${waiting.length - 1}`;
+    });
+  }
+
+  // 🔹 LOAD COMPANIES
+  onSnapshot(collection(db, "companies"), (snapshot) => {
+    companyQueues.innerHTML = "";
+
+    snapshot.forEach(docSnap => {
+      const c = docSnap.data();
+      const id = docSnap.id;
+
+      const div = document.createElement("div");
+      div.className = "company";
+
+      div.innerHTML = `
+        <h3>${c.name}</h3>
+        <p id="queue-${id}">Loading...</p>
+
+        <label><b>Interview Location:</b></label><br/>
+        <select onchange="updateInterviewLocation('${id}', this.value)">
+          <option value="">Select location</option>
+          <option value="BBA Auditorium" ${c.interviewLocation === "BBA Auditorium" ? "selected" : ""}>BBA Auditorium</option>
+          <option value="PPA Auditorium" ${c.interviewLocation === "PPA Auditorium" ? "selected" : ""}>PPA Auditorium</option>
+          <option value="LA 1 Building" ${c.interviewLocation === "LA 1 Building" ? "selected" : ""}>LA 1 Building</option>
+        </select>
+
+        <br/><br/>
+
+        <label><b>Room:</b></label><br/>
+        <select onchange="updateRoom('${id}', this.value)">
+          <option value="">Select room</option>
+          <option value="Room A" ${c.room === "Room A" ? "selected" : ""}>Room A</option>
+          <option value="Room B" ${c.room === "Room B" ? "selected" : ""}>Room B</option>
+          <option value="Room C" ${c.room === "Room C" ? "selected" : ""}>Room C</option>
+          <option value="Room D" ${c.room === "Room D" ? "selected" : ""}>Room D</option>
+          <option value="Room E" ${c.room === "Room E" ? "selected" : ""}>Room E</option>
+          <option value="Room F" ${c.room === "Room F" ? "selected" : ""}>Room F</option>
+          <option value="Room G" ${c.room === "Room G" ? "selected" : ""}>Room G</option>
+          <option value="Room H" ${c.room === "Room H" ? "selected" : ""}>Room H</option>
+          <option value="Room I" ${c.room === "Room I" ? "selected" : ""}>Room I</option>
+          <option value="Room J" ${c.room === "Room J" ? "selected" : ""}>Room J</option>
+        </select>
+
+        <br/><br/>
+
+        <button onclick="advanceQueue('${id}')">Call Next</button>
+        <button onclick="skipStudent('${id}')">Skip</button>
+        <button onclick="resetQueue('${id}')">Reset Queue</button>
+        <button onclick="viewWaitingList('${id}')">View Waiting List</button>
+      `;
+
+      companyQueues.appendChild(div);
+      listenToQueue(id);
+    });
+  });
+</script>
+
+</body>
+</html>

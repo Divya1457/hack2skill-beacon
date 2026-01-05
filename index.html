@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Beacon – Student Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    .sidebar-btn {
+      position: fixed;      /* 🔑 THIS IS THE FIX */
+      top: 18px;
+      left: 20px;
+      font-size: 22px;
+      background: none;
+      border: none;
+      color: #7dd3fc;
+      cursor: pointer;
+      z-index: 1100;        /* above sidebar */
+    }
+
+    .sidebar-btn.hidden {
+      display: none;
+    }
+
+
+    :root {
+      --accent: #7c7cff;
+      --accent2: #22d3ee;
+      --bg1: #050816;
+      --bg2: #0b1026;
+      --glass: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.15);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% 10%, #1b1f4a, transparent),
+        radial-gradient(800px 500px at 90% 20%, #0ea5e9, transparent),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      min-height: 100vh;
+    }
+
+  header {
+    padding: 22px 40px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    background: linear-gradient(90deg, #fff, #7dd3fc);
+    -webkit-background-clip: text;  
+    background-clip: text;          
+    color: transparent;
+    text-align: center;
+  }
+
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .glass {
+      background: var(--glass);
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 26px;
+      margin-bottom: 28px;
+      box-shadow: 0 0 40px rgba(124,124,255,0.12);
+      animation: floatIn 0.6s ease both;}
+    
+    /* 🔹 SIDEBAR NAVIGATION (closed by default) */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 220px;
+      height: 100vh;
+      background: rgba(10, 15, 40, 0.95);
+      border-right: 1px solid rgba(255,255,255,0.12);
+      padding: 20px;
+      z-index: 1000;
+
+      /* 🔒 hidden by default */
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+
+    /* ✅ when sidebar is open */
+    .sidebar.open {
+      transform: translateX(0);
+    }
+
+    .sidebar h3 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 16px;
+      color: #7dd3fc;
+    }
+
+    .sidebar a {
+      display: block;
+      color: #e5e7eb;
+      text-decoration: none;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .sidebar a:hover {  
+      color: #22d3ee;
+    }
+
+
+    @keyframes floatIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0 16px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 2px rgba(34,211,238,0.2);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    button {
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      color: #020617;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 20px rgba(124,124,255,0.4);
+    }
+
+    button.secondary {
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+      box-shadow: none;
+    }
+
+    .status {
+      text-align: center;
+      font-weight: 600;
+      margin-top: 12px;
+      color: #f87171;
+    }
+
+    /* 🔔 QUEUE POPUP SYSTEM */
+    #queueNotifications {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 420px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .queue-popup {
+      pointer-events: auto;
+      background: rgba(20, 25, 60, 0.95);
+      border: 1px solid rgba(124,124,255,0.4);
+      color: #e5e7eb;
+      padding: 14px 16px;
+      border-radius: 14px;
+      box-shadow: 0 0 25px rgba(124,124,255,0.35);
+      position: relative;
+      animation: slideUp 0.3s ease;
+    }
+
+    .queue-popup b {
+      color: #7dd3fc;
+    }
+
+    .queue-popup .close-btn {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      opacity: 0.7;
+    }
+
+    .queue-popup .close-btn:hover {
+      opacity: 1;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- 🔹 SIDEBAR -->
+<div class="sidebar" id="sidebar" style="display:none;">
+  <h3>Navigation</h3>
+  <a href="#studentIdentity">Student Identity</a>
+  <a href="#eligibleCompanies">Eligible Companies</a>
+  <a href="#myApplications">My Applications</a>
+  <a href="#interviewLocation">Interview Location</a>
+  <a href="#chatbot">Chatbot</a>
+</div>
+
+
+<header>
+<button id="sidebarToggle" class="sidebar-btn">☰</button>
+
+Beacon ✦ Placement Command Center
+</header>
+
+<div class="container">
+
+  <!-- AUTH -->
+  <div id="authSection" class="glass">
+    <h2>Access Portal</h2>
+
+    <label>Email</label>
+    <input type="email" id="email">
+
+    <label>Password</label>
+    <input type="password" id="password">
+
+    <button id="signupBtn">Create Account</button>
+    <button id="loginBtn" class="secondary">Login</button>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="profileSection" style="display:none;">
+
+    <div class="glass" id="studentIdentity">
+      <h2>Student Identity</h2>
+
+      <div class="row">
+        <div>
+          <label>Full Name</label>
+          <input id="name">
+        </div>
+        <div>
+          <label>Roll No</label>
+          <input id="roll">
+        </div>
+        <div>
+          <label>Branch</label>
+          <input id="branch">
+        </div>
+        <div>
+          <label>CPI</label>
+          <input id="cpi" type="number" step="0.01">
+        </div>
+      </div>
+
+      <label>Skills</label>
+      <input id="skills">
+
+      <label>Resume Link</label>
+      <input id="resume">
+
+      <button id="saveProfile">Save Profile</button>
+      <button id="logoutBtn" class="secondary">Logout</button>
+    </div>
+
+    <div class="glass" id="eligibleCompanies">
+      <h2>Eligible Companies</h2>
+      <div id="companyList"></div>
+    </div>
+
+    <div class="glass" id="myApplications">
+      <h2>My Applications</h2>
+      <div id="applicationsList"></div>
+    </div>
+
+    <div class="glass" id="chatbot">
+  <h2>Chatbot</h2>
+
+  <p style="color:#9ca3af; margin-bottom:14px;">
+    Access the placement chatbot for help with companies, eligibility,
+    interview process, and FAQs.
+  </p>
+
+  <a
+    href="https://divya1457.github.io/chatbot--beacon/"
+    target="_blank"
+    style="
+      display:inline-block;
+      padding:12px 18px;
+      border-radius:12px;
+      font-weight:600;
+      text-decoration:none;
+      color:#020617;
+      background:linear-gradient(135deg, #7c7cff, #22d3ee);
+      box-shadow:0 0 20px rgba(124,124,255,0.4);
+    "
+  >
+    🤖 Open Chatbot
+  </a>
+</div>
+
+
+    <!-- ✅ COMMON INTERVIEW LOCATION -->
+    <div class="glass" id="interviewLocation">
+      <h2>Interview Location</h2>
+      <p>Select your interview venue to view directions:</p>
+
+      <select id="locationSelect" style="margin-top:10px;">
+        <option value="">Select location</option>
+        <option value="PPA Auditorium">PPA Auditorium</option>
+        <option value="BBA Auditorium">BBA Auditorium</option>
+        <option value="LA 1">LA 1</option>
+      </select>
+
+      <div id="mapLink" style="margin-top:12px;">
+        <span style="color:#9ca3af;">Please select a location</span>
+      </div>
+    </div>
+
+<!-- keep this OUTSIDE the glass cards -->
+<p id="status" class="status"></p>
+
+<!-- 🔔 Queue Notifications Mount -->
+<div id="queueNotifications"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+<script>
+  emailjs.init("UF9z7J3wHZ4dFNWt7"); 
+</script>
+
+<script type="module" src="app.js"></script>
+
+
+<script>
+  function closeDetailsPopup() {
+    document.getElementById("detailsPopup").style.display = "none";
+    document.getElementById("popupBackdrop").style.display = "none";
+    document.getElementById("popupContent").innerHTML = "";
+  }
+</script>
+
+<script>
+  const LOCATION_MAPS = {
+    "PPA Auditorium": "https://maps.app.goo.gl/2DAJrMvNif3eYQCM8",
+    "BBA Auditorium": "https://maps.app.goo.gl/WCuivQu6N86x1r267",
+    "LA 1": "https://maps.app.goo.gl/E9ox1Ut9nocxrHLb7"
+  };
+
+  const select = document.getElementById("locationSelect");
+  const mapDiv = document.getElementById("mapLink");
+
+  if (select) {
+    select.addEventListener("change", () => {
+      const link = LOCATION_MAPS[select.value];
+
+      mapDiv.innerHTML = link
+        ? `<a href="${link}" target="_blank"
+             style="color:#7dd3fc; font-weight:600; text-decoration:underline;">
+             📍 Open location in Google Maps
+           </a>`
+        : `<span style="color:#9ca3af;">Please select a location</span>`;
+    });
+  }
+</script>
+
+
+
+
+</body>
+</html>
